@@ -1,6 +1,5 @@
 ### ENGG 4540 Final Lab ###
 ### Shaan Saharan ###
-### Part 1: Building a Simple RISC-V Interpreter ###
 
 import sys
 
