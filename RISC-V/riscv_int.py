@@ -43,11 +43,6 @@ class RISC_V_Simulator:
         """Executes the loaded RISC-V program instruction by instruction."""
         while self.pc < len(self.instructions):
             instr = self.instructions[self.pc]
-            
-            # Stop execution if we reach the 'done' label
-            #if instr.strip().startswith("done:"):
-                #break  # Exit the loop
-            
             self.pc += 1
             self.execute_instruction(instr)
 
@@ -88,21 +83,32 @@ class RISC_V_Simulator:
             self.instruction_count += 1  # Ensure `beq` counts as an instruction
             if self.registers[rs1] == self.registers[rs2]:  
                 self.pc = self.resolve_label(label)  # Jump to the label
-
+                
         elif opcode == 'jal':  # Jump and Link
             self.instruction_count += 1
+            return_address = self.pc + 1  # Store the correct return address (next instruction)
+
             if len(parts) == 3:  # Case: jal x1, label
                 rd, label = int(parts[1]), parts[2]
-                self.registers[rd] = self.pc  # Save return address
+                self.registers[rd] = return_address  # Store return address
             else:  # Case: jal label
                 label = parts[1]
-                self.registers[1] = self.pc  # Default return register (x1 as RA)
+                self.registers[1] = return_address  # Default return register (x1 as RA)
+
             self.pc = self.resolve_label(label)  # Jump to label
 
         elif opcode == 'j':  # Unconditional Jump
             self.instruction_count += 1
             label = parts[1]
             self.pc = self.resolve_label(label)  # Jump to the label
+            
+        elif opcode == 'ecall':  # System Call
+            self.instruction_count += 1
+            if self.registers[17] == 10:  # If a7 (x17) is set to 10, exit the program
+                print("\n--- Program Execution Completed ---")
+                self.print_state()
+                self.print_performance_metrics()
+                sys.exit(0)  # Stop execution
 
         else:
             print(f'Unknown instruction: {instr}')
@@ -137,7 +143,6 @@ if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("Usage: python3 riscv_int.py <program_file.txt>")
         sys.exit(1)
-    
     filename = sys.argv[1]
     simulator = RISC_V_Simulator()
     simulator.load_program(filename)  
