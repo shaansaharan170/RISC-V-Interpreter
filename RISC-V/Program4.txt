@@ -9,5 +9,6 @@ program4 = [
     increment:
         "ADD 3 3 1"
     done:
-    j done
+        "LI 17 10",  # Load exit system call (a7 = x17)
+        "ECALL"       # Terminate program
 ]
