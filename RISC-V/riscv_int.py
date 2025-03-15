@@ -78,6 +78,20 @@ class RISC_V_Simulator:
             self.instruction_count += 1
             rd, rs1, rs2 = map(int, parts[1:4])
             self.registers[rd] = self.registers[rs1] - self.registers[rs2]
+        
+        elif opcode == 'lw':  # Load Word
+            self.instruction_count += 1
+            self.memory_accesses += 1  # Track memory operation
+            rd, offset, rs1 = int(parts[1]), int(parts[2]), int(parts[3])
+            address = self.registers[rs1] + offset
+            self.registers[rd] = self.memory.get(address, 0)  # Load from memory (default 0 if not found)
+
+        elif opcode == 'sw':  # Store Word
+            self.instruction_count += 1
+            self.memory_accesses += 1  # Track memory operation
+            rs2, offset, rs1 = int(parts[1]), int(parts[2]), int(parts[3])
+            address = self.registers[rs1] + offset
+            self.memory[address] = self.registers[rs2]  # Store in memory
 
         elif opcode == 'li':  # Load immediate
             self.instruction_count += 1
