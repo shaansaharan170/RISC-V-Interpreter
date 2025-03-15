@@ -8,7 +8,8 @@ class RISC_V_Simulator:
         """Initialize registers, memory, program counter, and performance metrics."""
         self.registers = {i: 0 for i in range(32)}  # 32 registers
         self.memory = {}  # Simulated memory as a dictionary
-        self.pc = 0  # Program counter
+        self.pc = 0  # Program counter (index in instructions)
+        self.instr_address = 0  # Tracks actual instruction addresses (for RA only)
         self.instructions = []  # List to store loaded instructions
         self.labels = {}  # Dictionary to store label locations
 
@@ -37,14 +38,19 @@ class RISC_V_Simulator:
         for i, instr in enumerate(self.instructions):
             if ":" in instr:  # Detects labels like 'start:', 'done:'
                 label = instr.replace(":", "").strip()
-                self.labels[label] = i
+                self.labels[label] = i  # Store index of label
 
     def execute(self):
         """Executes the loaded RISC-V program instruction by instruction."""
+        self.instr_address = 0  # Reset address tracker at start of execution
         while self.pc < len(self.instructions):
             instr = self.instructions[self.pc]
-            self.pc += 1
             self.execute_instruction(instr)
+            self.pc += 1
+            if self.instruction_count == 0:
+                self.instr_address = 0
+            else:
+                self.instr_address += 4
 
     def execute_instruction(self, instr):
         """Decodes and executes a single instruction while tracking performance metrics."""
@@ -72,7 +78,7 @@ class RISC_V_Simulator:
             self.instruction_count += 1
             rd, rs1, rs2 = map(int, parts[1:4])
             self.registers[rd] = self.registers[rs1] - self.registers[rs2]
-        
+
         elif opcode == 'li':  # Load immediate
             self.instruction_count += 1
             rd, imm = int(parts[1]), int(parts[2])
@@ -80,35 +86,29 @@ class RISC_V_Simulator:
 
         elif opcode == 'beq':  # Branch if Equal
             rs1, rs2, label = int(parts[1]), int(parts[2]), parts[3]
-            self.instruction_count += 1  # Ensure `beq` counts as an instruction
+            self.instruction_count += 1
             if self.registers[rs1] == self.registers[rs2]:  
-                self.pc = self.resolve_label(label)  # Jump to the label
-                
+                self.pc = self.resolve_label(label)  # Jump to label index
+
         elif opcode == 'jal':  # Jump and Link
             self.instruction_count += 1
-            return_address = self.pc + 1  # Store the correct return address (next instruction)
 
-            if len(parts) == 3:  # Case: jal x1, label
+            return_address = self.instr_address # Store NEXT instruction's address in RA
+            
+            if len(parts) == 3:  # Case: jal x(n), label
                 rd, label = int(parts[1]), parts[2]
-                self.registers[rd] = return_address  # Store return address
+                self.registers[rd] = return_address  # Store return address in x(n)
             else:  # Case: jal label
                 label = parts[1]
-                self.registers[1] = return_address  # Default return register (x1 as RA)
+                self.registers[1] = return_address  # Store return address in x1 (RA)
 
-            self.pc = self.resolve_label(label)  # Jump to label
+            # Jump to label
+            self.pc = self.resolve_label(label)
 
         elif opcode == 'j':  # Unconditional Jump
             self.instruction_count += 1
             label = parts[1]
-            self.pc = self.resolve_label(label)  # Jump to the label
-            
-        elif opcode == 'ecall':  # System Call
-            self.instruction_count += 1
-            if self.registers[17] == 10:  # If a7 (x17) is set to 10, exit the program
-                print("\n--- Program Execution Completed ---")
-                self.print_state()
-                self.print_performance_metrics()
-                sys.exit(0)  # Stop execution
+            self.pc = self.resolve_label(label)
 
         else:
             print(f'Unknown instruction: {instr}')
